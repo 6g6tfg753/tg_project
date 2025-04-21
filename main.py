@@ -20,61 +20,41 @@ class TG_BOT():
 
     async def start(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
-        reply_keyboard = [['/get_list_name', '/view_lists', '/geocoder']]
+        reply_keyboard = [['/make_list', '/button2', '/geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             "здесь будет описание и список команд",
             reply_markup=markup)
 
-    async def get_list_name(self, update, context):
-        self.user_name = [update.message][0]['chat']['first_name']
-        new_item = """SELECT list_name FROM films WHERE tg_name = ?"""
-        lists = set(self.cur.execute(new_item, (self.user_name,)).fetchall())
-        reply_keyboard = []
-        for i in lists:
-            reply_keyboard.append([f"{str(i)[2:-3]}"])
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-        await update.message.reply_text(
-            'Выберете список. Чтобы создать новый список введите его название',
-            reply_markup=markup)
-        return 1
-
     async def make_list(self, update, context):
-        self.list_name = update.message.text
         reply_keyboard = [['/stop']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Введите название фильма',
             reply_markup=markup)
-        return 2
+        return 1
 
     async def get_data(self, update, context):
-        self.user_response = []
         self.user_response.append(update.message.text)
         reply_keyboard = [['Комедия', 'Детектив', 'Другое']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
-            'Выберете жанр фильма',
+            'Выберете жанр',
             reply_markup=markup)
-        return 3
+        return 2
 
     async def add_to_bd(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
         self.user_response.append(update.message.text)
         await update.message.reply_text(
             f"Успех")
-        new_item = """INSERT INTO films(tg_name, film_name, genre, list_name) VALUES (?, ?, ?, ?)"""
-        self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1], self.list_name))
+        new_item = """INSERT INTO films(tg_name, film_name, genre) VALUES (?, ?, ?)"""
+        self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1]))
         self.con.commit()
-        reply_keyboard = [['/get_list_name', '/view_lists', '/geocoder']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-        await update.message.reply_text(
-            'Выберете, что хотите сделать',
-            reply_markup=markup)
         return ConversationHandler.END
 
     async def stop(self, update, context):
-        reply_keyboard = [['/make_list', '/view_lists', "/geocoder"]]
+        reply_keyboard = [['/make_list', '/button2', "/geocoder"]]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -135,53 +115,21 @@ class TG_BOT():
             async with session.get(url, params=params) as resp:
                 return await resp.json()
 
-    async def view_lists(self, update, context):
-        self.user_name = [update.message][0]['chat']['first_name']
-        new_item = """SELECT list_name FROM films WHERE tg_name = ?"""
-        lists = set(self.cur.execute(new_item, (self.user_name,)).fetchall())
-        reply_keyboard = []
-        for i in lists:
-            reply_keyboard.append([f"{str(i)[2:-3]}"])
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-        await update.message.reply_text(
-            'Выберете список',
-            reply_markup=markup)
-        return 11
-
-    async def return_list(self, update, context):
-        list_name = update.message.text
-        new_item = """SELECT film_name, genre FROM films WHERE tg_name = ? AND list_name = ?"""
-        result = (self.cur.execute(new_item, (self.user_name, list_name,)).fetchall())
-        list_content = []
-        for i in result:
-            list_content.append(f"название: {i[0]}, жанр: {i[1]}")
-        await update.message.reply_text(f"{list_content}")
-        reply_keyboard = [['/get_list_name', '/view_lists']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-        await update.message.reply_text(
-            'Выберете, что хотите сделать',
-            reply_markup=markup)
-        return ConversationHandler.END
-
     def main(self):
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('get_list_name', self.get_list_name), CommandHandler('view_lists', self.view_lists)],
+            entry_points=[CommandHandler('make_list', self.make_list)],
             states={
-                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.make_list)],
-                2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_data)],
-                3: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.add_to_bd)],
-                11: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.return_list)]
+                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_data)],
+                2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.add_to_bd)]
 
             },
             fallbacks=[CommandHandler('stop', self.stop)]
         )
         application = Application.builder().token(TOKEN).build()
         application.add_handler(conv_handler)
-
         application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("help", self.help))
         application.add_handler(CommandHandler("geocoder", self.geocoder))
-
         application.run_polling()
 
 
