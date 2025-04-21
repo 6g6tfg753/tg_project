@@ -1,9 +1,9 @@
 from config import *
+from requirements import *
 from telegram.ext import Application, ConversationHandler, filters, CommandHandler, MessageHandler
 from telegram import ReplyKeyboardMarkup
 import logging
 import sqlite3
-import requests
 import aiohttp
 
 
@@ -20,7 +20,7 @@ class TG_BOT():
 
     async def start(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
-        reply_keyboard = [['/get_list_name', '/view_lists', '/geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             "здесь будет описание и список команд",
@@ -51,7 +51,7 @@ class TG_BOT():
     async def get_data(self, update, context):
         self.user_response = []
         self.user_response.append(update.message.text)
-        reply_keyboard = [['Комедия', 'Детектив', 'Другое']]
+        reply_keyboard = [['Комедия', 'Детектив', "Триллер", "Фантастика", 'Другое']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете жанр фильма',
@@ -66,7 +66,7 @@ class TG_BOT():
         new_item = """INSERT INTO films(tg_name, film_name, genre, list_name) VALUES (?, ?, ?, ?)"""
         self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1], self.list_name))
         self.con.commit()
-        reply_keyboard = [['/get_list_name', '/view_lists', '/geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -74,7 +74,7 @@ class TG_BOT():
         return ConversationHandler.END
 
     async def stop(self, update, context):
-        reply_keyboard = [['/make_list', '/view_lists', "/geocoder"]]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', "/geocoder"]]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -83,18 +83,22 @@ class TG_BOT():
 
     async def help(self, update, context):
         await update.message.reply_text(
-            f"Я бот.\n"
-            f"Что умеет этот бот:\n"
-            f"/make_list -- добавить в список фильм\n"
-            f"/geocoder (Город) -- найти картинку города\n"
-            f"/help -- помощь с ботом\n")
-
-    def get_ll_spn(self, toponym):
-        ll = list(map(lambda x: str(x), toponym["Point"]["pos"].split()))
-        lowercorner = list(map(lambda x: float(x), toponym["boundedBy"]["Envelope"]["lowerCorner"].split()))
-        uppercorner = list(map(lambda x: float(x), toponym["boundedBy"]["Envelope"]["upperCorner"].split()))
-        spn = list(map(lambda x: str(x), [uppercorner[0] - lowercorner[0], uppercorner[1] - lowercorner[1]]))
-        return ll, spn
+            f"Я - бот-помощник.\n"
+            f"\n<i><b><u>Что я умею:</u></b></i>\n"
+            f"\n<b>Фильмы:</b>\n"
+            f" --> /film_list_add -- добавлять новый список Ваших фильмов\n"
+            f" --> /film_view_lists -- показать списки фильмов\n"
+            # TODO: f" --> /film_delete -- удалять из списка фильм\n"
+            # TODO: f" --> /film_watch -- выбрать фильм для просмотра из списка всех фильмов\n"
+            f"\n<b>Карта:</b>\n"
+            f" --> /geocoder ~_Город_~ -- находит карту любого географического объекта\n"  # TODO: выделить объект на карте
+            f"\n<b>Напоминания:</b>\n"
+            # TODO: f" --> /reminding ~_время напоминания_~ (в формате HH::MM (DD:MM:YY)) ~_количество сообщений_~ (3 по умолчанию) --  установить напоминание\n" 
+            # TODO: f" --> /timer ~_на какое время таймер_~ (в формате HH::MM) ~_количество сообщений_~ (1 по умолчанию) --  установить таймер, который сработает через определенное количество времени\n" 
+            f"\n<b>Другое:</b>\n"
+            f" --> /help -- помощь с ботом\n"
+            # TODO: f" --> /question -- вопрос к разработчикам\n"
+            , parse_mode="html")
 
     async def geocoder(self, update, context):
         geocoder_uri = "http://geocode-maps.yandex.ru/1.x/"
@@ -121,7 +125,7 @@ class TG_BOT():
 
             return
         toponym = response['response']['GeoObjectCollection']["featureMember"][0]["GeoObject"]
-        ll, spn = self.get_ll_spn(toponym)
+        ll, spn = get_ll_spn(toponym)
         static_api_request = (f"http://static-maps.yandex.ru/1.x/?ll={str(ll[0]) + ',' + str(ll[1])}"
                               f"&spn={str(spn[0]) + ',' + str(spn[1])}&l=map")
         await context.bot.send_photo(
@@ -135,7 +139,7 @@ class TG_BOT():
             async with session.get(url, params=params) as resp:
                 return await resp.json()
 
-    async def view_lists(self, update, context):
+    async def film_view_lists(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
         new_item = """SELECT list_name FROM films WHERE tg_name = ?"""
         lists = set(self.cur.execute(new_item, (self.user_name,)).fetchall())
@@ -156,7 +160,7 @@ class TG_BOT():
         for i in result:
             list_content.append(f"название: {i[0]}, жанр: {i[1]}")
         await update.message.reply_text(f"{list_content}")
-        reply_keyboard = [['/get_list_name', '/view_lists', '/geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -165,7 +169,7 @@ class TG_BOT():
 
     def main(self):
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('get_list_name', self.get_list_name), CommandHandler('view_lists', self.view_lists)],
+            entry_points=[CommandHandler('film_list_add', self.get_list_name), CommandHandler('film_view_lists', self.film_view_lists)],
             states={
                 1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.make_list)],
                 2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_data)],
