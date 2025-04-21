@@ -18,8 +18,6 @@ class TG_BOT():
         self.con = sqlite3.connect('film_db.sqlite')
         self.cur = self.con.cursor()
         self.user_response = []
-        self.dialog_flag = False
-        self.congratulations_flag = False
 
     async def start(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
@@ -28,6 +26,8 @@ class TG_BOT():
         await update.message.reply_text(
             "Представься пожалуйста... ",
             reply_markup=markup)
+        return 5
+
 
     async def film_list_add(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
@@ -157,6 +157,7 @@ class TG_BOT():
         )
         return ConversationHandler.END
 
+
     async def geocoder_test(self, update, context):
         geocoder_uri = "http://geocode-maps.yandex.ru/1.x/"
         response = await self.get_response(geocoder_uri, params={
@@ -231,81 +232,115 @@ class TG_BOT():
         except Exception as e:
             logging.error(f"Ошибка при отправке стикера: {e}")
 
-    async def hello_user(self, update):
-        print(self.user_id)
-        await update.message.reply_text(f"Привет, {self.user_id}! Теперь ты можешь ознакомиться с тем, что я умею)) /help")
-
-    async def congratulations(self, update):
+    async def greetings(self, update, context):
         self.user_id = update.message.text
-        self.congratulations_flag = True
-        await self.hello_user(update)
+        await update.message.reply_text(f"Привет, {self.user_id}! Теперь ты можешь ознакомиться с тем, что я умею)) /help")
+        return ConversationHandler.END
 
     async def handle_message(self, update, context):
         user_message = update.message.text.lower().strip()
 
-        if self.congratulations_flag == False:
-            if "exit" in user_message or 'exit' in user_message:
-                self.dialog_flag = False
-                await update.message.reply_text("Очень жаль, что вы уходите")
-                await self.send_sticker(update, BYE_STICKER_ID)
-            else:
-                await self.congratulations(update)
-
-        elif self.dialog_flag == True:
-            if "exit" in user_message or 'exit' in user_message:
-                self.dialog_flag = False
-                await update.message.reply_text("Рад был поболтать)")
-                await self.send_sticker(update, BYE_STICKER_ID)
-            elif any(el in user_message for el in ["хорош", "отличн", "неплох", "норм"]):
-                await update.message.reply_text("С позитивными людьми приятно иметь дело)")
-            elif any(el in user_message for el in ["ужасн", "хуж", "плох", "ну", "отврат"]):
-                await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
-            else:
-                await update.message.reply_text("Дамц, в жизни все сложнее чем просто хорошо или плохо)(")
-            self.dialog_flag = False
-            await update.message.reply_text("Рад был поболтать)")
+        if "привет" in user_message:
+            await self.send_sticker(update, HELLO_STICKER_ID)
+        elif "пока" in user_message:
             await self.send_sticker(update, BYE_STICKER_ID)
+        elif ('help' in user_message or 'помощь' in user_message or 'ты' in user_message or
+                'бот' in user_message or 'умеешь' in user_message or 'делаешь' in user_message or '?' in user_message):
+            await self.help(update, context)
+        elif "адрес" in user_message:
+            await self.map_geocoder(update, context)
+        elif "фильм" in user_message:
+            await self.film_view_lists(update, context)
+        elif "добавить" in user_message:
+            await self.film_list_add(update, context)
+        elif "dialog" in user_message:
+            await self.dialog(update, context)
         else:
-            if "привет" in user_message:
-                await self.send_sticker(update, HELLO_STICKER_ID)
-            elif "пока" in user_message:
-                await self.send_sticker(update, BYE_STICKER_ID)
-            if ('help' in user_message or 'помощь' in user_message or 'ты' in user_message or
-                    'бот' in user_message or 'умеешь' in user_message or 'делаешь' in user_message):
-                await self.help(update, context)
-            elif "адрес" in user_message:
-                await self.map_geocoder(update, context)
-            elif "фильм" in user_message:
-                await self.film_view_lists(update, context)
-            elif "добавить" in user_message:
-                await self.film_list_add(update, context)
-            elif "говор" in user_message or "диалог" in user_message:
-                self.dialog_flag = True
-                await update.message.reply_text("Диалог начат, если хочешь закончить напиши выход или exit")
-                await update.message.reply_text("Привет) Как дела?")
-                await self.send_sticker(update, HELLO_STICKER_ID)
-            # else:
-            #     await update.message.reply_text(random.choice(NOT_STATED))
+            await update.message.reply_text(random.choice(NOT_STATED))
+
+    async def dialog(self, update, context):
+        question = random.randint(1)
+        if question == 1:
+            await self.good_day(update, context)
+        return ConversationHandler.END
+
+    async def good_day(self, update, context):
+        await update.message.reply_text(f"<b color='444444'>Диалог начат, если хочешь "
+                                        f"закончить напиши выход или exit</b>", parse_mode="html")
+        await update.message.reply_text("Как у тебя дела?")
+        return 11
+
+    async def is_weather(self, update, context):
+        answ = update.message.text
+        if any(el in answ for el in ["хорош", "отличн", "неплох", "норм"]):
+            await update.message.reply_text("С позитивными людьми приятно иметь дело)")
+        elif any(el in answ for el in ["ужасн", "хуж", "плох", "ну", "отврат"]):
+            await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
+        else:
+            await update.message.reply_text("Дамц, в жизни все сложнее чем просто хорошо или плохо)(")
+        await update.message.reply_text('Это из-за погоды?')
+        return 111
+
+    async def yes_or_no(self, update, context):
+        answ = update.message.text
+        if any(el in answ for el in ["да", "отличн", "неплох", "норм"]):
+            await update.message.reply_text("Погода поменяется и настроение тоже...")
+        elif any(el in answ for el in ["нет", "хуж", "плох", "ну", "отврат"]):
+            await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
+        else:
+            await update.message.reply_text("Да... в жизни все сложнее чем просто да или нет)(")
+        await update.message.reply_text('Это из-за погоды?')
+        return ConversationHandler.END
+
 
     def main(self):
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler('film_list_add', self.film_list_add),
                           CommandHandler('film_view_lists', self.film_view_lists),
-                          CommandHandler('map_geocoder', self.map_geocoder),
                           ],
             states={
                 1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.make_list)],
                 2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_data)],
                 3: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.add_to_bd)],
                 11: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.return_list)],
+            },
+            fallbacks=[CommandHandler('stop', self.stop)]
+        )
+
+        greeting = ConversationHandler(
+            entry_points=[CommandHandler("start", self.start),],
+            states={
+                5: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.greetings)]
+            },
+            fallbacks=[CommandHandler('stop', self.stop)]
+        )
+
+        geocoder = ConversationHandler(
+            entry_points=[CommandHandler("map_geocoder", self.map_geocoder),],
+            states={
                 4: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.send_map_object)],
             },
             fallbacks=[CommandHandler('stop', self.stop)]
         )
+
+        dialog = ConversationHandler(
+            entry_points=[CommandHandler("dialog", self.dialog), ],
+            states={
+                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.good_day)],
+                11: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.is_weather)],
+                111: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.yes_or_no)],
+            },
+            fallbacks=[CommandHandler('stop', self.stop)]
+        )
+
         application = Application.builder().token(TOKEN).build()
         application.add_handler(conv_handler)
+        application.add_handler(greeting)
+        application.add_handler(geocoder)
+        application.add_handler(dialog)
         application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("help", self.help))
+        application.add_handler(CommandHandler("map_geocoder", self.map_geocoder))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 
         # Инструменты разработчика:
