@@ -1,10 +1,11 @@
 from config import *
 from requirements import *
-from telegram.ext import Application, ConversationHandler, filters, CommandHandler, MessageHandler
+from telegram.ext import Application, ConversationHandler, filters, CommandHandler, MessageHandler, ContextTypes
 from telegram import ReplyKeyboardMarkup
 import logging
 import sqlite3
 import aiohttp
+import random
 
 
 class TG_BOT():
@@ -17,16 +18,17 @@ class TG_BOT():
         self.con = sqlite3.connect('film_db.sqlite')
         self.cur = self.con.cursor()
         self.user_response = []
+        self.dialog_flag = False
 
     async def start(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
-            "здесь будет описание и список команд",
+            "Мы рады тебя приветствовать) Если хочешь узнать что умеет бот напиши /help",
             reply_markup=markup)
 
-    async def get_list_name(self, update, context):
+    async def film_list_add(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
         new_item = """SELECT list_name FROM films WHERE tg_name = ?"""
         lists = set(self.cur.execute(new_item, (self.user_name,)).fetchall())
@@ -66,7 +68,7 @@ class TG_BOT():
         new_item = """INSERT INTO films(tg_name, film_name, genre, list_name) VALUES (?, ?, ?, ?)"""
         self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1], self.list_name))
         self.con.commit()
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -74,7 +76,7 @@ class TG_BOT():
         return ConversationHandler.END
 
     async def stop(self, update, context):
-        reply_keyboard = [['/film_list_add', '/film_view_lists', "/geocoder"]]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', "/map_geocoder"]]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -85,16 +87,24 @@ class TG_BOT():
         await update.message.reply_text(
             f"Я - бот-помощник.\n"
             f"\n<i><b><u>Что я умею:</u></b></i>\n"
+
+            f"\n<b>Диалог:</b>\n"
+            f" --> Я умею здороваться с пользователем\n"
+            f" --> Я пока что умею поддерживать простой диалог по кодовому слову 'диалог'\n"
+            f" --> Я умею прощаться с пользователем\n"
+            
             f"\n<b>Фильмы:</b>\n"
             f" --> /film_list_add -- добавлять новый список Ваших фильмов\n"
             f" --> /film_view_lists -- показать списки фильмов\n"
             # TODO: f" --> /film_delete -- удалять из списка фильм\n"
             # TODO: f" --> /film_watch -- выбрать фильм для просмотра из списка всех фильмов\n"
+
             f"\n<b>Карта:</b>\n"
-            f" --> /map_geocoder ~_Город_~ -- находит карту любого географического объекта\n"  # TODO: выделить объект на карте
+            f" --> /map_geocoder -- находит карту любого географического объекта\n"  # TODO: выделить объект на карте
             f"\n<b>Напоминания:</b>\n"
             # TODO: f" --> /reminding ~_время напоминания_~ (в формате HH::MM (DD:MM:YY)) ~_количество сообщений_~ (3 по умолчанию) --  установить напоминание\n" 
             # TODO: f" --> /timer ~_на какое время таймер_~ (в формате HH::MM) ~_количество сообщений_~ (1 по умолчанию) --  установить таймер, который сработает через определенное количество времени\n" 
+
             f"\n<b>Другое:</b>\n"
             f" --> /help -- помощь с ботом\n"
             # TODO: f" --> /question -- вопрос к разработчикам\n"
@@ -167,7 +177,7 @@ class TG_BOT():
             print("error! geo-object not found!")
             await context.bot.sendMessage(
                 update.message.chat_id,  f"Чтобы создать запрос вы должны ввести название объекта,"
-                                         f" картинку которого вы хотите вывести, например:\n"
+                                         f" картинку которого вы хотите вывести, например:\n\n"
                                          f"\geocoder Якутск\n\n"
                                          f"Попробуйте ещё раз)")
 
@@ -209,16 +219,73 @@ class TG_BOT():
         for i in result:
             list_content.append(f"название: {i[0]}, жанр: {i[1]}")
         await update.message.reply_text(f"{list_content}")
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
             reply_markup=markup)
         return ConversationHandler.END
 
+    async def handle_message(self, update, context):
+        user_message = update.message.text.lower().strip()
+
+        if self.dialog_flag == False:
+            if "привет" in user_message:
+                try:
+                    await update.message.reply_sticker(random.choice(HELLO_STICKER_ID))
+                except Exception as e:
+                    logging.error(f"Ошибка при отправке стикера: {e}")
+                    await update.message.reply_text("Не могу отправить стикер :(")
+            elif "пока" in user_message:
+                try:
+                    await update.message.reply_sticker(random.choice(BYE_STICKER_ID))
+                except Exception as e:
+                    logging.error(f"Ошибка при отправке стикера: {e}")
+                    await update.message.reply_text("Не могу отправить стикер :(")
+            if 'help' in user_message or 'помощь' in user_message or 'ты' in user_message or 'бот' in user_message or'умеешь' in user_message or'делаешь' in user_message:
+                await self.help(update, context)
+            elif "адрес" in user_message:
+                await self.map_geocoder(update, context)
+            elif "фильм" in user_message:
+                await self.film_view_lists(update, context)
+            elif "добавить" in user_message:
+                await self.film_list_add(update, context)
+            elif "говор" in user_message or "диалог" in user_message:
+                self.dialog_flag = True
+                await update.message.reply_text("Диалог начат, если хочешь закончить напиши выход или exit")
+                await update.message.reply_text("Привет) Как дела?")
+                try:
+                    await update.message.reply_sticker(random.choice(HELLO_STICKER_ID))
+                except Exception as e:
+                    logging.error(f"Ошибка при отправке стикера: {e}")
+                    await update.message.reply_text("Не могу отправить стикер :(")
+            else:
+                await update.message.reply_text(random.choice(NOT_STATED))
+        else:
+            if "exit" in user_message or 'exit' in user_message:
+                self.dialog_flag = False
+                await update.message.reply_text("Рад был поболтать)")
+                try:
+                    await update.message.reply_sticker(random.choice(BYE_STICKER_ID))
+                except Exception as e:
+                    logging.error(f"Ошибка при отправке стикера: {e}")
+                    await update.message.reply_text("Не могу отправить стикер :(")
+            elif any(el in user_message for el in ["хорош", "отличн", "неплох", "норм"]):
+                await update.message.reply_text("С позитивными людьми приятно иметь дело)")
+            elif any(el in user_message for el in ["ужасн", "хуж", "плох", "ну", "отврат"]):
+                await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
+            else:
+                await update.message.reply_text("Дамц, в жизни все сложнее чем просто хорошо или плохо)(")
+            self.dialog_flag = False
+            await update.message.reply_text("Рад был поболтать)")
+            try:
+                await update.message.reply_sticker(random.choice(BYE_STICKER_ID))
+            except Exception as e:
+                logging.error(f"Ошибка при отправке стикера: {e}")
+
     def main(self):
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('film_list_add', self.get_list_name),
+            entry_points=[CommandHandler('film_list_add', self.film_list_add),
                           CommandHandler('film_view_lists', self.film_view_lists),
                           CommandHandler('map_geocoder', self.map_geocoder),
                           ],
@@ -235,6 +302,9 @@ class TG_BOT():
         application.add_handler(conv_handler)
         application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("help", self.help))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+
+        # Инструменты разработчика:
         application.add_handler(CommandHandler("geocoder_test", self.geocoder_test))
 
         application.run_polling()
