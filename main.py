@@ -66,7 +66,7 @@ class TG_BOT():
         new_item = """INSERT INTO films(tg_name, film_name, genre, list_name) VALUES (?, ?, ?, ?)"""
         self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1], self.list_name))
         self.con.commit()
-        reply_keyboard = [['/get_list_name', '/view_lists']]
+        reply_keyboard = [['/get_list_name', '/view_lists', '/geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
