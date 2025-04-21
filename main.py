@@ -19,13 +19,14 @@ class TG_BOT():
         self.cur = self.con.cursor()
         self.user_response = []
         self.dialog_flag = False
+        self.congratulations_flag = False
 
     async def start(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
         reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
-            "Мы рады тебя приветствовать) Если хочешь узнать что умеет бот напиши /help",
+            "Представься пожалуйста... ",
             reply_markup=markup)
 
     async def film_list_add(self, update, context):
@@ -92,7 +93,7 @@ class TG_BOT():
             f" --> Я умею здороваться с пользователем\n"
             f" --> Я пока что умею поддерживать простой диалог по кодовому слову 'диалог'\n"
             f" --> Я умею прощаться с пользователем\n"
-            
+
             f"\n<b>Фильмы:</b>\n"
             f" --> /film_list_add -- добавлять новый список Ваших фильмов\n"
             f" --> /film_view_lists -- показать списки фильмов\n"
@@ -118,7 +119,6 @@ class TG_BOT():
             reply_markup=markup)
         return 4
 
-
     async def send_map_object(self, update, context):
         self.user_response = []
         self.user_response.append(update.message.text)
@@ -128,21 +128,21 @@ class TG_BOT():
             "format": "json",
             "geocode": self.user_response[0]
         })
-        if str(update.message.text)[10:] == "":
+        if str(update.message.text)== "":
             print("error! no geo-object!")
             await context.bot.sendMessage(
-                update.message.chat_id,  f"Чтобы создать запрос вы должны ввести название объекта,"
-                                         f" картинку которого вы хотите вывести, например:\n\n"
-                                         f"\geocoder Якутск\n\n"
-                                         f"Попробуйте ещё раз)")
+                update.message.chat_id, f"Чтобы создать запрос вы должны ввести название объекта,"
+                                        f" картинку которого вы хотите вывести, например:\n\n"
+                                        f"Якутск\n\n"
+                                        f"Попробуйте ещё раз)")
             return
         elif (response['response']['GeoObjectCollection']["featureMember"] == []):
             print("error! geo-object not found!")
             await context.bot.sendMessage(
-                update.message.chat_id,  f"Чтобы создать запрос вы должны ввести название объекта,"
-                                         f" картинку которого вы хотите вывести, например:\n\n"
-                                         f"\geocoder Якутск\n\n"
-                                         f"Попробуйте ещё раз)")
+                update.message.chat_id, f"Чтобы создать запрос вы должны ввести название объекта,"
+                                        f" картинку которого вы хотите вывести, например:\n\n"
+                                        f"Якутск\n\n"
+                                        f"Попробуйте ещё раз)")
 
             return
         toponym = response['response']['GeoObjectCollection']["featureMember"][0]["GeoObject"]
@@ -157,7 +157,6 @@ class TG_BOT():
         )
         return ConversationHandler.END
 
-
     async def geocoder_test(self, update, context):
         geocoder_uri = "http://geocode-maps.yandex.ru/1.x/"
         response = await self.get_response(geocoder_uri, params={
@@ -168,18 +167,18 @@ class TG_BOT():
         if str(update.message.text)[10:] == "":
             print("error! no geo-object!")
             await context.bot.sendMessage(
-                update.message.chat_id,  f"Чтобы создать запрос вы должны ввести название объекта,"
-                                         f" картинку которого вы хотите вывести, например:\n\n"
-                                         f"\geocoder Якутск\n\n"
-                                         f"Попробуйте ещё раз)")
+                update.message.chat_id, f"Чтобы создать запрос вы должны ввести название объекта,"
+                                        f" картинку которого вы хотите вывести, например:\n\n"
+                                        f"\geocoder Якутск\n\n"
+                                        f"Попробуйте ещё раз)")
             return
         elif (response['response']['GeoObjectCollection']["featureMember"] == []):
             print("error! geo-object not found!")
             await context.bot.sendMessage(
-                update.message.chat_id,  f"Чтобы создать запрос вы должны ввести название объекта,"
-                                         f" картинку которого вы хотите вывести, например:\n\n"
-                                         f"\geocoder Якутск\n\n"
-                                         f"Попробуйте ещё раз)")
+                update.message.chat_id, f"Чтобы создать запрос вы должны ввести название объекта,"
+                                        f" картинку которого вы хотите вывести, например:\n\n"
+                                        f"\geocoder Якутск\n\n"
+                                        f"Попробуйте ещё раз)")
 
             return ConversationHandler.END
         toponym = response['response']['GeoObjectCollection']["featureMember"][0]["GeoObject"]
@@ -226,23 +225,53 @@ class TG_BOT():
             reply_markup=markup)
         return ConversationHandler.END
 
+    async def send_sticker(self, update, mas):
+        try:
+            await update.message.reply_sticker(random.choice(mas))
+        except Exception as e:
+            logging.error(f"Ошибка при отправке стикера: {e}")
+
+    async def hello_user(self, update):
+        print(self.user_id)
+        await update.message.reply_text(f"Привет, {self.user_id}! Теперь ты можешь ознакомиться с тем, что я умею)) /help")
+
+    async def congratulations(self, update):
+        self.user_id = update.message.text
+        self.congratulations_flag = True
+        await self.hello_user(update)
+
     async def handle_message(self, update, context):
         user_message = update.message.text.lower().strip()
 
-        if self.dialog_flag == False:
+        if self.congratulations_flag == False:
+            if "exit" in user_message or 'exit' in user_message:
+                self.dialog_flag = False
+                await update.message.reply_text("Очень жаль, что вы уходите")
+                await self.send_sticker(update, BYE_STICKER_ID)
+            else:
+                await self.congratulations(update)
+
+        elif self.dialog_flag == True:
+            if "exit" in user_message or 'exit' in user_message:
+                self.dialog_flag = False
+                await update.message.reply_text("Рад был поболтать)")
+                await self.send_sticker(update, BYE_STICKER_ID)
+            elif any(el in user_message for el in ["хорош", "отличн", "неплох", "норм"]):
+                await update.message.reply_text("С позитивными людьми приятно иметь дело)")
+            elif any(el in user_message for el in ["ужасн", "хуж", "плох", "ну", "отврат"]):
+                await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
+            else:
+                await update.message.reply_text("Дамц, в жизни все сложнее чем просто хорошо или плохо)(")
+            self.dialog_flag = False
+            await update.message.reply_text("Рад был поболтать)")
+            await self.send_sticker(update, BYE_STICKER_ID)
+        else:
             if "привет" in user_message:
-                try:
-                    await update.message.reply_sticker(random.choice(HELLO_STICKER_ID))
-                except Exception as e:
-                    logging.error(f"Ошибка при отправке стикера: {e}")
-                    await update.message.reply_text("Не могу отправить стикер :(")
+                await self.send_sticker(update, HELLO_STICKER_ID)
             elif "пока" in user_message:
-                try:
-                    await update.message.reply_sticker(random.choice(BYE_STICKER_ID))
-                except Exception as e:
-                    logging.error(f"Ошибка при отправке стикера: {e}")
-                    await update.message.reply_text("Не могу отправить стикер :(")
-            if 'help' in user_message or 'помощь' in user_message or 'ты' in user_message or 'бот' in user_message or'умеешь' in user_message or'делаешь' in user_message:
+                await self.send_sticker(update, BYE_STICKER_ID)
+            if ('help' in user_message or 'помощь' in user_message or 'ты' in user_message or
+                    'бот' in user_message or 'умеешь' in user_message or 'делаешь' in user_message):
                 await self.help(update, context)
             elif "адрес" in user_message:
                 await self.map_geocoder(update, context)
@@ -254,34 +283,9 @@ class TG_BOT():
                 self.dialog_flag = True
                 await update.message.reply_text("Диалог начат, если хочешь закончить напиши выход или exit")
                 await update.message.reply_text("Привет) Как дела?")
-                try:
-                    await update.message.reply_sticker(random.choice(HELLO_STICKER_ID))
-                except Exception as e:
-                    logging.error(f"Ошибка при отправке стикера: {e}")
-                    await update.message.reply_text("Не могу отправить стикер :(")
-            else:
-                await update.message.reply_text(random.choice(NOT_STATED))
-        else:
-            if "exit" in user_message or 'exit' in user_message:
-                self.dialog_flag = False
-                await update.message.reply_text("Рад был поболтать)")
-                try:
-                    await update.message.reply_sticker(random.choice(BYE_STICKER_ID))
-                except Exception as e:
-                    logging.error(f"Ошибка при отправке стикера: {e}")
-                    await update.message.reply_text("Не могу отправить стикер :(")
-            elif any(el in user_message for el in ["хорош", "отличн", "неплох", "норм"]):
-                await update.message.reply_text("С позитивными людьми приятно иметь дело)")
-            elif any(el in user_message for el in ["ужасн", "хуж", "плох", "ну", "отврат"]):
-                await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
-            else:
-                await update.message.reply_text("Дамц, в жизни все сложнее чем просто хорошо или плохо)(")
-            self.dialog_flag = False
-            await update.message.reply_text("Рад был поболтать)")
-            try:
-                await update.message.reply_sticker(random.choice(BYE_STICKER_ID))
-            except Exception as e:
-                logging.error(f"Ошибка при отправке стикера: {e}")
+                await self.send_sticker(update, HELLO_STICKER_ID)
+            # else:
+            #     await update.message.reply_text(random.choice(NOT_STATED))
 
     def main(self):
         conv_handler = ConversationHandler(
