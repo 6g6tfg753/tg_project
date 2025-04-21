@@ -1,4 +1,4 @@
-def get_ll_spn(self, toponym):
+def get_ll_spn(toponym):
     ll = list(map(lambda x: str(x), toponym["Point"]["pos"].split()))
     lowercorner = list(map(lambda x: float(x), toponym["boundedBy"]["Envelope"]["lowerCorner"].split()))
     uppercorner = list(map(lambda x: float(x), toponym["boundedBy"]["Envelope"]["upperCorner"].split()))

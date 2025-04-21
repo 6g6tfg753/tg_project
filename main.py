@@ -91,7 +91,7 @@ class TG_BOT():
             # TODO: f" --> /film_delete -- удалять из списка фильм\n"
             # TODO: f" --> /film_watch -- выбрать фильм для просмотра из списка всех фильмов\n"
             f"\n<b>Карта:</b>\n"
-            f" --> /geocoder ~_Город_~ -- находит карту любого географического объекта\n"  # TODO: выделить объект на карте
+            f" --> /map_geocoder ~_Город_~ -- находит карту любого географического объекта\n"  # TODO: выделить объект на карте
             f"\n<b>Напоминания:</b>\n"
             # TODO: f" --> /reminding ~_время напоминания_~ (в формате HH::MM (DD:MM:YY)) ~_количество сообщений_~ (3 по умолчанию) --  установить напоминание\n" 
             # TODO: f" --> /timer ~_на какое время таймер_~ (в формате HH::MM) ~_количество сообщений_~ (1 по умолчанию) --  установить таймер, который сработает через определенное количество времени\n" 
@@ -100,7 +100,55 @@ class TG_BOT():
             # TODO: f" --> /question -- вопрос к разработчикам\n"
             , parse_mode="html")
 
-    async def geocoder(self, update, context):
+    async def map_geocoder(self, update, context):
+        reply_keyboard = [['Санкт-Петербург', 'Якутск', "Кострома"]]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(
+            'Напишите название объекта',
+            reply_markup=markup)
+        return 4
+
+
+    async def send_map_object(self, update, context):
+        self.user_response = []
+        self.user_response.append(update.message.text)
+        geocoder_uri = "http://geocode-maps.yandex.ru/1.x/"
+        response = await self.get_response(geocoder_uri, params={
+            "apikey": "8013b162-6b42-4997-9691-77b7074026e0",
+            "format": "json",
+            "geocode": self.user_response[0]
+        })
+        if str(update.message.text)[10:] == "":
+            print("error! no geo-object!")
+            await context.bot.sendMessage(
+                update.message.chat_id,  f"Чтобы создать запрос вы должны ввести название объекта,"
+                                         f" картинку которого вы хотите вывести, например:\n\n"
+                                         f"\geocoder Якутск\n\n"
+                                         f"Попробуйте ещё раз)")
+            return
+        elif (response['response']['GeoObjectCollection']["featureMember"] == []):
+            print("error! geo-object not found!")
+            await context.bot.sendMessage(
+                update.message.chat_id,  f"Чтобы создать запрос вы должны ввести название объекта,"
+                                         f" картинку которого вы хотите вывести, например:\n\n"
+                                         f"\geocoder Якутск\n\n"
+                                         f"Попробуйте ещё раз)")
+
+            return
+        toponym = response['response']['GeoObjectCollection']["featureMember"][0]["GeoObject"]
+        print(toponym)
+        print(self.user_response)
+        ll, spn = get_ll_spn(toponym)
+        static_api_request = (f"http://static-maps.yandex.ru/1.x/?ll={str(ll[0]) + ',' + str(ll[1])}"
+                              f"&spn={str(spn[0]) + ',' + str(spn[1])}&l=map")
+        await context.bot.send_photo(
+            update.message.chat_id, static_api_request,
+            caption=f"{(response['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['metaDataProperty']['GeocoderMetaData']['text'])}"
+        )
+        return ConversationHandler.END
+
+
+    async def geocoder_test(self, update, context):
         geocoder_uri = "http://geocode-maps.yandex.ru/1.x/"
         response = await self.get_response(geocoder_uri, params={
             "apikey": "8013b162-6b42-4997-9691-77b7074026e0",
@@ -123,7 +171,7 @@ class TG_BOT():
                                          f"\geocoder Якутск\n\n"
                                          f"Попробуйте ещё раз)")
 
-            return
+            return ConversationHandler.END
         toponym = response['response']['GeoObjectCollection']["featureMember"][0]["GeoObject"]
         ll, spn = get_ll_spn(toponym)
         static_api_request = (f"http://static-maps.yandex.ru/1.x/?ll={str(ll[0]) + ',' + str(ll[1])}"
@@ -132,6 +180,7 @@ class TG_BOT():
             update.message.chat_id, static_api_request,
             caption=f"{(response['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['metaDataProperty']['GeocoderMetaData']['text'])}"
         )
+        return ConversationHandler.END
 
     async def get_response(self, url, params):
         self.logger.info(f"getting {url}")
@@ -169,22 +218,24 @@ class TG_BOT():
 
     def main(self):
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('film_list_add', self.get_list_name), CommandHandler('film_view_lists', self.film_view_lists)],
+            entry_points=[CommandHandler('film_list_add', self.get_list_name),
+                          CommandHandler('film_view_lists', self.film_view_lists),
+                          CommandHandler('map_geocoder', self.map_geocoder),
+                          ],
             states={
                 1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.make_list)],
                 2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_data)],
                 3: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.add_to_bd)],
-                11: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.return_list)]
-
+                11: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.return_list)],
+                4: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.send_map_object)],
             },
             fallbacks=[CommandHandler('stop', self.stop)]
         )
         application = Application.builder().token(TOKEN).build()
         application.add_handler(conv_handler)
-
         application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("help", self.help))
-        application.add_handler(CommandHandler("geocoder", self.geocoder))
+        application.add_handler(CommandHandler("geocoder_test", self.geocoder_test))
 
         application.run_polling()
 
