@@ -6,6 +6,7 @@ import logging
 import sqlite3
 import aiohttp
 import random
+from parser import parse
 
 
 class TG_BOT():
@@ -19,9 +20,23 @@ class TG_BOT():
         self.cur = self.con.cursor()
         self.user_response = []
 
+    async def get_film_name_url(self, update, context):
+        reply_keyboard = [['/stop']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(
+            'Введите название фильма, ссылку на который вы хотите получить',
+            reply_markup=markup)
+        return 2
+
+    async def get_url(self, update, context):
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(parse(update.message.text),
+            reply_markup=markup)
+
     async def start(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             "Представься пожалуйста... ",
@@ -69,7 +84,7 @@ class TG_BOT():
         new_item = """INSERT INTO films(tg_name, film_name, genre, list_name) VALUES (?, ?, ?, ?)"""
         self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1], self.list_name))
         self.con.commit()
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -77,7 +92,7 @@ class TG_BOT():
         return ConversationHandler.END
 
     async def stop(self, update, context):
-        reply_keyboard = [['/film_list_add', '/film_view_lists', "/map_geocoder"]]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -219,7 +234,7 @@ class TG_BOT():
         for i in result:
             list_content.append(f"название: {i[0]}, жанр: {i[1]}")
         await update.message.reply_text(f"{list_content}")
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder']]
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -292,7 +307,6 @@ class TG_BOT():
         await update.message.reply_text('Это из-за погоды?')
         return ConversationHandler.END
 
-
     def main(self):
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler('film_list_add', self.film_list_add),
@@ -333,11 +347,20 @@ class TG_BOT():
             fallbacks=[CommandHandler('stop', self.stop)]
         )
 
+        film_url_dialog = ConversationHandler(
+            entry_points=[CommandHandler("get_film_name_url", self.get_film_name_url), ],
+            states={
+                2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_url)],
+            },
+            fallbacks=[CommandHandler('stop', self.stop)]
+        )
+
         application = Application.builder().token(TOKEN).build()
         application.add_handler(conv_handler)
         application.add_handler(greeting)
         application.add_handler(geocoder)
         application.add_handler(dialog)
+        application.add_handler(film_url_dialog)
         application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("help", self.help))
         application.add_handler(CommandHandler("map_geocoder", self.map_geocoder))
