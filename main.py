@@ -31,8 +31,21 @@ class TG_BOT():
     async def get_url(self, update, context):
         reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-        await update.message.reply_text(parse(update.message.text),
+        a = parse(update.message.text)
+        if len(a) == 0:
+            await update.message.reply_text("мы не смогли найти этот фильм, попробуйте ещё раз((")
+            return ConversationHandler.END
+        await update.message.reply_text("Скорее всего вы искали:\n" + a[0],
             reply_markup=markup)
+        if len(a) == 1:
+            return ConversationHandler.END
+        b = "Вот  что ещё мы нашли:\n"
+        c = list(map(str, [a[i] for i in range(len(a)) if i != 0]))
+        for el in c:
+            b += str(c.index(el) + 1) + ".) " + el + "\n"
+        await update.message.reply_text(b,
+            reply_markup=markup)
+        return ConversationHandler.END
 
     async def start(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
@@ -99,6 +112,7 @@ class TG_BOT():
             reply_markup=markup)
         return ConversationHandler.END
 
+
     async def help(self, update, context):
         await update.message.reply_text(
             f"Я - бот-помощник.\n"
@@ -106,12 +120,13 @@ class TG_BOT():
 
             f"\n<b>Диалог:</b>\n"
             f" --> Я умею здороваться с пользователем\n"
-            f" --> Я пока что умею поддерживать простой диалог по кодовому слову 'диалог'\n"
+            f" --> Я пока что умею поддерживать простой диалог по команде /dialog\n"
             f" --> Я умею прощаться с пользователем\n"
 
             f"\n<b>Фильмы:</b>\n"
             f" --> /film_list_add -- добавлять новый список Ваших фильмов\n"
             f" --> /film_view_lists -- показать списки фильмов\n"
+            f" --> /get_film_name_url -- получить ссылку на фильм по названию\n"
             # TODO: f" --> /film_delete -- удалять из списка фильм\n"
             # TODO: f" --> /film_watch -- выбрать фильм для просмотра из списка всех фильмов\n"
 
@@ -241,7 +256,8 @@ class TG_BOT():
             reply_markup=markup)
         return ConversationHandler.END
 
-    async def send_sticker(self, update, mas):
+    async def send_sticker(self, update, mas, MESS=['']):
+        await update.message.reply_text(random.choice(MESS))
         try:
             await update.message.reply_sticker(random.choice(mas))
         except Exception as e:
@@ -256,56 +272,105 @@ class TG_BOT():
         user_message = update.message.text.lower().strip()
 
         if "привет" in user_message:
-            await self.send_sticker(update, HELLO_STICKER_ID)
+            await self.send_sticker(update, HELLO_STICKER_ID, HELLO)
         elif "пока" in user_message:
-            await self.send_sticker(update, BYE_STICKER_ID)
+            await self.send_sticker(update, BYE_STICKER_ID, BYE)
+            await update.message.reply_text(f"Если я ещё понадоблюсь, \nто напишите /start или /help")
         elif ('help' in user_message or 'помощь' in user_message or 'ты' in user_message or
                 'бот' in user_message or 'умеешь' in user_message or 'делаешь' in user_message or '?' in user_message):
             await self.help(update, context)
         elif "адрес" in user_message:
-            await self.map_geocoder(update, context)
+            await update.message.reply_text(f"Мне кажется ты хочешь воспользоваться командой /map_geocoder")
         elif "фильм" in user_message:
-            await self.film_view_lists(update, context)
+            await update.message.reply_text(f"Мне кажется ты хочешь воспользоваться командой /film_view_lists")
         elif "добавить" in user_message:
-            await self.film_list_add(update, context)
-        elif "dialog" in user_message:
-            await self.dialog(update, context)
+            await update.message.reply_text(f"Мне кажется ты хочешь воспользоваться командой /film_list_add")
+        elif "dialog" in user_message or "диалог" in user_message or "Диалог" in user_message or "говор" in user_message:
+            await update.message.reply_text(f"Мне кажется ты хочешь воспользоваться командой /dialog")
         else:
             await update.message.reply_text(random.choice(NOT_STATED))
 
     async def dialog(self, update, context):
-        question = random.randint(1)
+        question = random.choice([1, 2])
+        await update.message.reply_text(f"<b>Диалог начат, если хочешь "
+                                        f"закончить напиши exit</b>", parse_mode="html")
         if question == 1:
-            await self.good_day(update, context)
-        return ConversationHandler.END
+            await update.message.reply_text("Как у тебя дела?")
+            return 1
+        elif question == 2:
+            await update.message.reply_text("Любишь питон?")
+            return 2
+        else:
+            await self.end_dialog(update, context)
+            return ConversationHandler.END
 
-    async def good_day(self, update, context):
-        await update.message.reply_text(f"<b color='444444'>Диалог начат, если хочешь "
-                                        f"закончить напиши выход или exit</b>", parse_mode="html")
-        await update.message.reply_text("Как у тебя дела?")
-        return 11
+    async def end_dialog(self, update, context):
+        await update.message.reply_text("Жаль, что вы не хотите поговорить")
+        await update.message.reply_text("Диалог закончен")
 
     async def is_weather(self, update, context):
-        answ = update.message.text
-        if any(el in answ for el in ["хорош", "отличн", "неплох", "норм"]):
+        answ = update.message.text.lower()
+        if "exit" in answ or "/" in answ:
+            await update.message.reply_text("Жаль, что вы не хотите поговорить")
+            await update.message.reply_text("Диалог закончен")
+            return ConversationHandler.END
+        if "хорош" in answ or "отличн" in answ or "неплох" in answ or "норм" in answ:
             await update.message.reply_text("С позитивными людьми приятно иметь дело)")
-        elif any(el in answ for el in ["ужасн", "хуж", "плох", "ну", "отврат"]):
+        elif "ну" in answ or "ужасн" in answ or "хуж" in answ or "плох" in answ or "отврат" in answ:
             await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
         else:
             await update.message.reply_text("Дамц, в жизни все сложнее чем просто хорошо или плохо)(")
         await update.message.reply_text('Это из-за погоды?')
-        return 111
+        return 11
 
     async def yes_or_no(self, update, context):
-        answ = update.message.text
-        if any(el in answ for el in ["да", "отличн", "неплох", "норм"]):
-            await update.message.reply_text("Погода поменяется и настроение тоже...")
-        elif any(el in answ for el in ["нет", "хуж", "плох", "ну", "отврат"]):
+        answ = update.message.text.lower()
+        if "exit" in answ or "/" in answ:
+            await update.message.reply_text("Жаль, что вы не хотите поговорить")
+            await update.message.reply_text("Диалог закончен")
+            return ConversationHandler.END
+        if "да" in answ or "отличн" in answ or "неплох" in answ or "норм" in answ:
+            await update.message.reply_text("Погода поменяется и настроение тоже...)")
+        elif "нет" in answ or "ужасн" in answ or "хуж" in answ or "плох" in answ or "отврат" in answ:
             await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
         else:
-            await update.message.reply_text("Да... в жизни все сложнее чем просто да или нет)(")
-        await update.message.reply_text('Это из-за погоды?')
+            await update.message.reply_text("Хм... в жизни все сложнее чем просто да или нет)(")
+        await update.message.reply_text("Хорошо поговорили))")
         return ConversationHandler.END
+
+    async def like_python(self, update, context):
+        answ = update.message.text.lower()
+        if "exit" in answ or "/" in answ:
+            await update.message.reply_text("Жаль, что вы не хотите поговорить")
+            await update.message.reply_text("Диалог закончен")
+            return ConversationHandler.END
+        if "да" in answ or "очень" in answ or "ага" in answ or "норм" in answ:
+            await update.message.reply_text("Отлично, я сам написан на питоне?")
+            await update.message.reply_text("Хочешь написать тг бота на питоне?")
+        elif "нет" in answ or "не" in answ or "хуж" in answ or "плох" in answ or "отврат" in answ:
+            await update.message.reply_text("Жалко, мои разработчики очень любят этот язык)")
+            await update.message.reply_text("Хочешь написать тг бота на другом языке?")
+        else:
+            await update.message.reply_text("Так да или нет?")
+            return 2
+        return 21
+
+    async def write_tg(self, update, context):
+        answ = update.message.text.lower()
+        if "exit" in answ or "/" in answ:
+            await update.message.reply_text("Жаль, что вы не хотите поговорить")
+            await update.message.reply_text("Диалог закончен")
+            return ConversationHandler.END
+        if "да" in answ or "конечно" in answ or "ага" in answ or "хо" in answ:
+            await update.message.reply_text("Класс, попробуй, у тебя получится)))")
+        elif "нет" in answ or "ни" in answ:
+            await update.message.reply_text("Жаль((( на самом деле это интересно(")
+        else:
+            await update.message.reply_text("Это да или нет?")
+            return 21
+        await update.message.reply_text("Хорошо поговорили)) Пока))")
+        return ConversationHandler.END
+
 
     def main(self):
         conv_handler = ConversationHandler(
@@ -338,17 +403,21 @@ class TG_BOT():
         )
 
         dialog = ConversationHandler(
-            entry_points=[CommandHandler("dialog", self.dialog), ],
+            entry_points=[CommandHandler("dialog", self.dialog),],
             states={
-                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.good_day)],
-                11: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.is_weather)],
-                111: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.yes_or_no)],
+                0: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.end_dialog)],
+                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.is_weather)],
+                11: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.yes_or_no)],
+                2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.like_python)],
+                21: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.write_tg)],
+                1000: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.dialog)],
+
             },
             fallbacks=[CommandHandler('stop', self.stop)]
         )
 
         film_url_dialog = ConversationHandler(
-            entry_points=[CommandHandler("get_film_name_url", self.get_film_name_url), ],
+            entry_points=[CommandHandler("get_film_name_url", self.get_film_name_url),],
             states={
                 2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_url)],
             },
@@ -361,9 +430,7 @@ class TG_BOT():
         application.add_handler(geocoder)
         application.add_handler(dialog)
         application.add_handler(film_url_dialog)
-        application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("help", self.help))
-        application.add_handler(CommandHandler("map_geocoder", self.map_geocoder))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 
         # Инструменты разработчика:

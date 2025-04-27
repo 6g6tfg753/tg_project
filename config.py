@@ -1,4 +1,5 @@
 TOKEN = '8016724552:AAEvmYiC-z844NFmvRCRdl6wG4TLB_gmr1E'
+
 HELLO_STICKER_ID = ['CAACAgIAAxkBAAEOiaRoBnNqXQQUi-d-xs-T_5yWi3kgDwACHgkAAhhC7gj5WNnuHSGcITYE',
                     'CAACAgIAAxkBAAEOiatoBnQdft_Oq_hoQcXZQfqr8A7htgAC-BYAAstG0UpJuy3W8rP2XDYE',
                     'CAACAgIAAxkBAAEOia1oBnQp8jAlJbe0FkQUbCKlcV2wMwACbgADwDZPE22H7UqzeJmXNgQ',
@@ -13,5 +14,10 @@ NOT_STATED = ['Хм... это что-то интересное... но я нич
               'Если вам нужна помощь нажмите /help',
               '...',
               'А если чуть понятнее?',]
-
+HELLO = ['Привет)',
+         'Здраствуйте!!!',
+         'Приветствую!)',
+         'Доброго времени суток)',
+         'Hi!',]
+BYE = ['Пока(', 'Жаль что вы уходите((', 'Приходите ещё(', 'До свидания(', ]
 
