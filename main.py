@@ -1,5 +1,5 @@
 from config import *
-from requirements import *
+from ll_spn import *
 from telegram.ext import Application, ConversationHandler, filters, CommandHandler, MessageHandler, ContextTypes
 from telegram import ReplyKeyboardMarkup
 import logging
