@@ -142,7 +142,7 @@ class TG_BOT():
             , parse_mode="html")
 
     async def map_geocoder(self, update, context):
-        reply_keyboard = [['Санкт-Петербург', 'Якутск', "Кострома"]]
+        reply_keyboard = [['Санкт-Петербург', 'Якутск', "Кострома", '/stop']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Напишите название объекта',
@@ -245,10 +245,10 @@ class TG_BOT():
         list_name = update.message.text
         new_item = """SELECT film_name, genre FROM films WHERE tg_name = ? AND list_name = ?"""
         result = (self.cur.execute(new_item, (self.user_name, list_name,)).fetchall())
-        list_content = []
+        str_content = ''
         for i in result:
-            list_content.append(f"название: {i[0]}, жанр: {i[1]}")
-        await update.message.reply_text(f"{list_content}")
+            str_content += (f"Название: {i[0]}, жанр: {i[1]}\n")
+        await update.message.reply_text(f"{str_content}")
         reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
