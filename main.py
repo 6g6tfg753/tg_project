@@ -1,3 +1,5 @@
+import datetime
+
 from config import *
 from ll_spn import *
 from telegram.ext import Application, ConversationHandler, filters, CommandHandler, MessageHandler, ContextTypes
@@ -6,6 +8,8 @@ import logging
 import sqlite3
 import aiohttp
 import random
+import datetime
+import requests
 from parser import parse
 
 
@@ -157,10 +161,15 @@ class TG_BOT():
             f"Я - бот-помощник.\n"
             f"\n<i><b><u>Что я умею:</u></b></i>\n"
 
-            f"\n<b>Диалог:</b>\n"
+            f"\n<b>Простые действия:</b>\n"
             f" --> Я умею здороваться с пользователем\n"
-            f" --> /dialog -- умею поддерживать простой диалог\n"
+            f" --> Я могу подсказать текущую дату и время\n"
             f" --> Я умею прощаться с пользователем\n"
+
+            f"\n<b>Простые команды:</b>\n"
+            f" --> /dialog -- умею поддерживать простой диалог\n"
+            f" --> /birthday -- могу посчитать количество дней до вашего дня рождения "
+            f"(или любой даты если ввести ее вместо даты др)\n"
 
             f"\n<b>Фильмы:</b>\n"
             f" --> /film_list_add -- добавлять новый список Ваших фильмов\n"
@@ -169,11 +178,7 @@ class TG_BOT():
             f" --> /film_delete -- удалять из списка фильм\n"
 
             f"\n<b>Карта:</b>\n"
-            f" --> /map_geocoder -- находит карту любого географического объекта\n"  # TODO: выделить объект на карте
-
-            f"\n<b>Напоминания:</b>\n"
-            # TODO: f" --> /reminding ~_время напоминания_~ (в формате HH::MM (DD:MM:YY)) ~_количество сообщений_~ (3 по умолчанию) --  установить напоминание\n" 
-            # TODO: f" --> /timer ~_на какое время таймер_~ (в формате HH::MM) ~_количество сообщений_~ (1 по умолчанию) --  установить таймер, который сработает через определенное количество времени\n" 
+            f" --> /map_geocoder -- находит карту любого географического объекта\n"
 
             f"\n<b>Другое:</b>\n"
             f" --> /help -- помощь с ботом\n"
@@ -319,9 +324,6 @@ class TG_BOT():
         elif "пока" in user_message:
             await self.send_sticker(update, BYE_STICKER_ID, BYE)
             await update.message.reply_text(f"Если я ещё понадоблюсь, \nто напишите /start или /help")
-        elif ('help' in user_message or 'помощь' in user_message or 'ты' in user_message or
-                'бот' in user_message or 'умеешь' in user_message or 'делаешь' in user_message or '?' in user_message):
-            await self.help(update, context)
         elif "адрес" in user_message:
             await update.message.reply_text(f"Мне кажется ты хочешь воспользоваться командой /map_geocoder")
         elif "фильм" in user_message:
@@ -330,6 +332,14 @@ class TG_BOT():
             await update.message.reply_text(f"Мне кажется ты хочешь воспользоваться командой /film_list_add")
         elif "dialog" in user_message or "диалог" in user_message or "Диалог" in user_message or "говор" in user_message:
             await update.message.reply_text(f"Мне кажется ты хочешь воспользоваться командой /dialog")
+        elif "time" in user_message or "врем" in user_message or "час" in user_message or "дата" in user_message:
+            time_1 = datetime.datetime.now().strftime('Сейчас %H часов %M минут\n\nEсли тебя интересует, то %d число %M месяца %Y года\n\nЕсли быть точным %H:%M (%S sec)')
+            await update.message.reply_text(time_1)
+        elif "др" in user_message or "день" in user_message or "рожд" in user_message:
+            await update.message.reply_text(f"Мне кажется ты хочешь воспользоваться командой /birthday")
+        elif ('help' in user_message or 'помощь' in user_message or 'ты' in user_message or
+                  'бот' in user_message or 'умеешь' in user_message or 'делаешь' in user_message or '?' in user_message):
+            await self.help(update, context)
         else:
             await update.message.reply_text(random.choice(NOT_STATED))
 
@@ -415,19 +425,120 @@ class TG_BOT():
         return ConversationHandler.END
 
     async def question(self, update, context):
-        await update.message.reply_text(f"Убедительно просим Вас быть вежливыми")
+        await update.message.reply_text(f"Убедительно просим Вас быть вежливыми, ведь это сообщение отправляется напрямую администраторам")
         await update.message.reply_text(f"Введите текст запроса:")
         return 1
 
     async def send_question(self, update, context):
         first_name = [update.message][0]['chat']['first_name']
         user_name = [update.message][0]['chat']['username']
-        await update.message.reply_text(f"Ваше сообщение отправлено")
+        a = update.message.text.lower()
+        if ("классн" in a or "хорош" in a or "прекрасн" in a or "замечательн" in a or 'здравствуйте' in a or 'спасибо' in a or 'уважаем' in a or 'извините' in a) and ("не" not in a):
+            await update.message.reply_text(f"Ваше сообщение отправлено")
+        else:
+            await update.message.reply_text(f"Ваше сообщение НЕ может быть отправлено((")
+            await update.message.reply_text(f"Наши админы очень расстраиваются из-за неконструктивной критики)\n\n"
+                                            f"Для вашего же блага советуем использовать слова:\n"
+                                            f"'здравствуйте', 'спасибо', 'уважаемый', 'извините'\n"
+                                            f"А также словосочетания: 'классный/афигенный бот'")
         await context.bot.sendMessage(GROUP_ID,
                                       f"Получен вопрос от пользователя {first_name}(@{user_name}):\n\n '{update.message.text}"
                                       f"'\n\n Хотите ответить ему в лс?")
         return ConversationHandler.END
 
+    async def birthday(self, update, context):
+        await update.message.reply_text(f"Введите дату своего рождения (в формате: 'число месяц')")
+        return 1
+
+    async def count_birthday(self, update, context):
+        a = update.message.text.lower().split(" ")
+        if len(a) != 2:
+            await update.message.reply_text(f"Мы не можем распознать дату(\nПопробуйте ещё раз\nНапример: 1 января")
+            return ConversationHandler.END
+        try:
+            d = int(a[0])
+            if a[1][0] in "0123456789":
+                m = int(a[1])
+            else:
+                if "янв" in a[1]:
+                    m = 1
+                elif "фев" in a[1]:
+                    m = 2
+                elif "мар" in a[1]:
+                    m = 3
+                elif "апр" in a[1]:
+                    m = 4
+                elif "ма" in a[1]:
+                    m = 5
+                elif "июн" in a[1]:
+                    m = 6
+                elif "июл" in a[1]:
+                    m = 7
+                elif "авг" in a[1]:
+                    m = 8
+                elif "сен" in a[1]:
+                    m = 9
+                elif "окт" in a[1]:
+                    m = 10
+                elif "ноя" in a[1]:
+                    m = 11
+                elif "дек" in a[1]:
+                    m = 12
+                else:
+                    await update.message.reply_text(
+                        f"Мы не можем распознать дату(\nПопробуйте ещё раз\nНапример: 1 января")
+                    return ConversationHandler.END
+        except:
+            await update.message.reply_text(f"Мы не можем распознать дату(\nПопробуйте ещё раз\nНапример: 1 января")
+            return ConversationHandler.END
+        now = datetime.datetime.now()
+        other_date = datetime.datetime(day=d, month=m, year=2025)
+        if other_date < now:
+            other_date = datetime.datetime(day=d, month=m, year=2026)
+        delta = other_date - now
+        days = delta.days
+        seconds = delta.seconds
+        if days == 0:
+            await update.message.reply_text(f"До вашего др осталось:\n{seconds // 3600} часов, "
+                                            f"{(seconds % 3600) // 60} минут, {seconds % 60} секунд))\nУже совсем скоро)")
+        else:
+            await update.message.reply_text(f"До вашего др осталось:\n{days} дней, {seconds // 3600} часов, "
+                                        f"{(seconds % 3600) // 60} минут, {seconds % 60} секунд))\nУже совсем скоро)")
+        return ConversationHandler.END
+
+    async def weather(self, update, context):
+        await update.message.reply_text(f"Введите название города, в котором хотите узнать погоду)")
+        return 1
+
+    async def get_weather(self, update, context):
+        try:
+            town = update.message.text
+            u = f"http://api.openweathermap.org/data/2.5/weather"
+            params = {"q": town,
+                      "lang": "ru",
+                      "units": "metric",
+                      "appid": API_WEATHER_KEY,}
+            response = requests.get(u, params)
+            data = response.json()
+            description = data["weather"][0]["description"]
+            temp = data["main"]["temp"]
+            feels_like = data["main"]["feels_like"]
+            temp_min = data["main"]["temp_min"]
+            temp_max = data["main"]["temp_max"]
+            pressure = data["main"]["pressure"]
+            humidity = data["main"]["humidity"]
+            speed = data["wind"]["speed"]
+
+            await update.message.reply_text(f"ПОГОДА ДЛЯ ГОРОДА {town.upper()}:\n\n"
+                                            f"Прогноз: {description}\n"
+                                            f"Температура: +{int(temp)}℃\n (+{temp_min}℃ - +{temp_max}℃)\n"
+                                            f"Ощущается как: +{int(feels_like)}℃\n"
+                                            f"Давление: {pressure // 1.333} мм рт ст\n"
+                                            f"Влажность: {humidity}%\n"
+                                            f"Скорость ветра: {speed} м/с\n")
+        except:
+            await update.message.reply_text("Проверьте название города!")
+        return ConversationHandler.END
 
     def main(self):
         film_dialog = ConversationHandler(
@@ -493,6 +604,22 @@ class TG_BOT():
             fallbacks=[CommandHandler('stop', self.stop)]
         )
 
+        birthday = ConversationHandler(
+            entry_points=[CommandHandler("birthday", self.birthday),],
+            states={
+                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.count_birthday)],
+            },
+            fallbacks=[CommandHandler('stop', self.stop)]
+        )
+
+        weather = ConversationHandler(
+            entry_points=[CommandHandler("weather", self.weather),],
+            states={
+                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_weather)],
+            },
+            fallbacks=[CommandHandler('stop', self.stop)]
+        )
+
         application = Application.builder().token(TOKEN).build()
         application.add_handler(film_dialog)
         application.add_handler(greeting)
@@ -500,6 +627,8 @@ class TG_BOT():
         application.add_handler(dialog)
         application.add_handler(film_url_dialog)
         application.add_handler(question_to_testing)
+        application.add_handler(birthday)
+        application.add_handler(weather)
         application.add_handler(CommandHandler("help", self.help))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 
