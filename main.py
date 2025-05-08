@@ -1,5 +1,3 @@
-import datetime
-
 from config import *
 from ll_spn import *
 from telegram.ext import Application, ConversationHandler, filters, CommandHandler, MessageHandler, ContextTypes
@@ -249,33 +247,31 @@ class TG_BOT():
             "format": "json",
             "geocode": self.user_response[0]
         })
-        if str(update.message.text)== "":
-            print("error! no geo-object!")
-            await context.bot.sendMessage(
-                update.message.chat_id, f"Чтобы создать запрос вы должны ввести название объекта,"
-                                        f" картинку которого вы хотите вывести, например:\n\n"
-                                        f"Якутск\n\n"
-                                        f"Попробуйте ещё раз)")
-            return
-        elif (response['response']['GeoObjectCollection']["featureMember"] == []):
-            print("error! geo-object not found!")
-            await context.bot.sendMessage(
-                update.message.chat_id, f"Чтобы создать запрос вы должны ввести название объекта,"
-                                        f" картинку которого вы хотите вывести, например:\n\n"
-                                        f"Якутск\n\n"
-                                        f"Попробуйте ещё раз)")
 
-            return
-        toponym = response['response']['GeoObjectCollection']["featureMember"][0]["GeoObject"]
-        print(toponym)
-        print(self.user_response)
-        ll, spn = get_ll_spn(toponym)
-        static_api_request = (f"http://static-maps.yandex.ru/1.x/?ll={str(ll[0]) + ',' + str(ll[1])}"
-                              f"&spn={str(spn[0]) + ',' + str(spn[1])}&l=map")
-        await context.bot.send_photo(
-            update.message.chat_id, static_api_request,
-            caption=f"{(response['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['metaDataProperty']['GeocoderMetaData']['text'])}"
-        )
+        try:
+            reply_keyboard = [['Привет', 'Время', 'Пока'],
+                              ['/dialog', '/birthday', '/weather'],
+                              ['/film_list_add', '/film_delete'],
+                              ['/get_film_name_url', '/film_view_lists'],
+                              ['/map_geocoder'],
+                              ['/question']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            toponym = response['response']['GeoObjectCollection']["featureMember"][0]["GeoObject"]
+            ll, spn = get_ll_spn(toponym)
+            static_api_request = (f"http://static-maps.yandex.ru/1.x/?ll={str(ll[0]) + ',' + str(ll[1])}"
+                                  f"&spn={str(spn[0]) + ',' + str(spn[1])}&l=map")
+            await context.bot.send_photo(
+                update.message.chat_id, static_api_request,
+                caption=f"{(response['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['metaDataProperty']['GeocoderMetaData']['text'])}",
+            reply_markup=markup)
+        except:
+            reply_keyboard = [['/map_geocoder']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_text(f"Чтобы создать запрос вы должны ввести название объекта,"
+                                        f" картинку которого вы хотите вывести, например:\n\n"
+                                        f"\geocoder Якутск\n\n"
+                                        f"Попробуйте ещё раз)", reply_markup=markup)
+
         return ConversationHandler.END
 
     async def geocoder_test(self, update, context):
@@ -410,7 +406,14 @@ class TG_BOT():
 
     async def end_dialog(self, update, context):
         await update.message.reply_text("Жаль, что вы не хотите поговорить")
-        await update.message.reply_text("Диалог закончен")
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text("Диалог закончен", reply_markup=markup)
 
     async def is_weather(self, update, context):
         answ = update.message.text.lower()
@@ -485,7 +488,14 @@ class TG_BOT():
         else:
             await update.message.reply_text("Это да или нет?")
             return 21
-        await update.message.reply_text("Хорошо поговорили)) Пока))")
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text("Хорошо поговорили)) Пока))", reply_markup=markup)
         return ConversationHandler.END
 
     async def question(self, update, context):
@@ -501,13 +511,22 @@ class TG_BOT():
         user_name = [update.message][0]['chat']['username']
         a = update.message.text.lower()
         if ("классн" in a or "хорош" in a or "прекрасн" in a or "замечательн" in a or 'здравствуйте' in a or 'спасибо' in a or 'уважаем' in a or 'извините' in a) and ("не" not in a):
-            await update.message.reply_text(f"Ваше сообщение отправлено")
+            reply_keyboard = [['Привет', 'Время', 'Пока'],
+                              ['/dialog', '/birthday', '/weather'],
+                              ['/film_list_add', '/film_delete'],
+                              ['/get_film_name_url', '/film_view_lists'],
+                              ['/map_geocoder'],
+                              ['/question']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_text(f"Ваше сообщение отправлено", reply_markup=markup)
         else:
             await update.message.reply_text(f"Ваше сообщение НЕ может быть отправлено((")
+            reply_keyboard = [['/question']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
             await update.message.reply_text(f"Наши админы очень расстраиваются из-за неконструктивной критики)\n\n"
                                             f"Для вашего же блага советуем использовать слова:\n"
                                             f"'здравствуйте', 'спасибо', 'уважаемый', 'извините'\n"
-                                            f"А также словосочетания: 'классный/афигенный бот'")
+                                            f"А также словосочетания: 'классный/афигенный бот'", reply_markup=markup)
         await context.bot.sendMessage(GROUP_ID,
                                       f"Получен вопрос от пользователя {first_name}(@{user_name}):\n\n '{update.message.text}"
                                       f"'\n\n Хотите ответить ему в лс?")
@@ -559,7 +578,9 @@ class TG_BOT():
                         f"Мы не можем распознать дату(\nПопробуйте ещё раз\nНапример: 1 января")
                     return ConversationHandler.END
         except:
-            await update.message.reply_text(f"Мы не можем распознать дату(\nПопробуйте ещё раз\nНапример: 1 января")
+            reply_keyboard = [['/birthday']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_text(f"Мы не можем распознать дату(\nПопробуйте ещё раз\nНапример: 1 января", reply_markup=markup)
             return ConversationHandler.END
         now = datetime.datetime.now()
         other_date = datetime.datetime(day=d, month=m, year=2025)
@@ -568,12 +589,19 @@ class TG_BOT():
         delta = other_date - now
         days = delta.days
         seconds = delta.seconds
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         if days == 0:
             await update.message.reply_text(f"До вашего др осталось:\n{seconds // 3600} часов, "
-                                            f"{(seconds % 3600) // 60} минут, {seconds % 60} секунд))\nУже совсем скоро)")
+                                            f"{(seconds % 3600) // 60} минут, {seconds % 60} секунд))\nУже совсем скоро)", reply_markup=markup)
         else:
             await update.message.reply_text(f"До вашего др осталось:\n{days} дней, {seconds // 3600} часов, "
-                                        f"{(seconds % 3600) // 60} минут, {seconds % 60} секунд))\nУже совсем скоро)")
+                                        f"{(seconds % 3600) // 60} минут, {seconds % 60} секунд))\nУже совсем скоро)", reply_markup=markup)
         return ConversationHandler.END
 
     async def weather(self, update, context):
@@ -603,16 +631,24 @@ class TG_BOT():
             pressure = data["main"]["pressure"]
             humidity = data["main"]["humidity"]
             speed = data["wind"]["speed"]
-
+            reply_keyboard = [['Привет', 'Время', 'Пока'],
+                              ['/dialog', '/birthday', '/weather'],
+                              ['/film_list_add', '/film_delete'],
+                              ['/get_film_name_url', '/film_view_lists'],
+                              ['/map_geocoder'],
+                              ['/question']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
             await update.message.reply_text(f"ПОГОДА ДЛЯ ГОРОДА {town.upper()}:\n\n"
                                             f"Прогноз: {description}\n"
                                             f"Температура: +{int(temp)}℃\n (+{temp_min}℃ - +{temp_max}℃)\n"
                                             f"Ощущается как: +{int(feels_like)}℃\n"
                                             f"Давление: {pressure // 1.333} мм рт ст\n"
                                             f"Влажность: {humidity}%\n"
-                                            f"Скорость ветра: {speed} м/с\n")
+                                            f"Скорость ветра: {speed} м/с\n", reply_markup=markup)
         except:
-            await update.message.reply_text("Проверьте название города!")
+            reply_keyboard = [['/weather']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_text("Проверьте название города!", reply_markup=markup)
         return ConversationHandler.END
 
     def main(self):
