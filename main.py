@@ -33,7 +33,12 @@ class TG_BOT():
         return 2
 
     async def get_url(self, update, context):
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         a = parse(update.message.text)
         if len(a) == 0:
@@ -53,12 +58,31 @@ class TG_BOT():
 
     async def start(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
-            "Представься пожалуйста... ",
-            reply_markup=markup)
+            "Представься пожалуйста... ",)
         return 5
+
+    async def greetings(self, update, context):
+        reply_keyboard = [['/help']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        first_name = [update.message][0]['chat']['first_name']
+        user_name = [update.message][0]['chat']['username']
+        if "меня зовут" in update.message.text.lower():
+            if len(update.message.text.lower().split(" ")) == 3:
+                self.user_id = update.message.text[update.message.text.lower().find("меня зовут") + 11:].capitalize()
+            else:
+                self.user_id = update.message.text[update.message.text.lower().find("меня зовут") + 11:update.message.text.lower().find(" ")].capitalize()
+        else:
+            if len(update.message.text.lower().split(" ")) == 1:
+                self.user_id = update.message.text.capitalize()
+            else:
+                self.user_id = update.message.text.capitalize()
+        await update.message.reply_text(f"Привет, {self.user_id}! Теперь ты можешь ознакомиться с тем, что я умею)) /help",
+                                        reply_markup=markup)
+        await context.bot.sendMessage(GROUP_ID,
+                                      f"Пользователь {first_name}(@{user_name}) использует Ваш бот)"
+                                      f"'\n\n Хотите запретить ему писать сообщения?")
+        return ConversationHandler.END
 
     async def film_list_add(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
@@ -85,7 +109,7 @@ class TG_BOT():
     async def get_data(self, update, context):
         self.user_response = []
         self.user_response.append(update.message.text)
-        reply_keyboard = [['Комедия', 'Детектив', "Триллер", "Фантастика", 'Другое']]
+        reply_keyboard = [['Комедия'], ['Детектив'], ["Триллер"], ["Фантастика"], ['Другое']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете жанр фильма',
@@ -126,7 +150,12 @@ class TG_BOT():
         new_item = """DELETE FROM films WHERE tg_name = ? and list_name = ? and film_name = ?"""
         self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1]))
         self.con.commit()
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Успешно удалено',
@@ -141,7 +170,12 @@ class TG_BOT():
         new_item = """INSERT INTO films(tg_name, film_name, genre, list_name) VALUES (?, ?, ?, ?)"""
         self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1], self.list_name))
         self.con.commit()
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -149,7 +183,12 @@ class TG_BOT():
         return ConversationHandler.END
 
     async def stop(self, update, context):
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -157,6 +196,13 @@ class TG_BOT():
         return ConversationHandler.END
 
     async def help(self, update, context):
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             f"Я - бот-помощник.\n"
             f"\n<i><b><u>Что я умею:</u></b></i>\n"
@@ -170,6 +216,7 @@ class TG_BOT():
             f" --> /dialog -- умею поддерживать простой диалог\n"
             f" --> /birthday -- могу посчитать количество дней до вашего дня рождения "
             f"(или любой даты если ввести ее вместо даты др)\n"
+            f" --> /weather -- умею рассказывать погоду в конкретном городе\n"
 
             f"\n<b>Фильмы:</b>\n"
             f" --> /film_list_add -- добавлять новый список Ваших фильмов\n"
@@ -183,10 +230,10 @@ class TG_BOT():
             f"\n<b>Другое:</b>\n"
             f" --> /help -- помощь с ботом\n"
             f" --> /question -- вопрос к разработчикам\n"
-            , parse_mode="html")
+            , parse_mode="html", reply_markup=markup)
 
     async def map_geocoder(self, update, context):
-        reply_keyboard = [['Санкт-Петербург', 'Якутск', "Кострома", '/stop']]
+        reply_keyboard = [['Санкт-Петербург'], ['Якутск'], ["Кострома"]]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Напишите название объекта',
@@ -288,11 +335,18 @@ class TG_BOT():
         list_name = update.message.text
         new_item = """SELECT film_name, genre FROM films WHERE tg_name = ? AND list_name = ?"""
         result = (self.cur.execute(new_item, (self.user_name, list_name,)).fetchall())
-        str_content = ''
+        str_content = '|  | ---  НАЗВАНИЕ  --- | -----  ЖАНР  -----\n'
+        cnt = 1
         for i in result:
-            str_content += (f"Название: {i[0]}, жанр: {i[1]}\n")
+            str_content += (f"{cnt} {i[0][:16]} --- ({i[1][:16]})\n")
+            cnt += 1
         await update.message.reply_text(f"{str_content}")
-        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(
             'Выберете, что хотите сделать',
@@ -305,16 +359,6 @@ class TG_BOT():
             await update.message.reply_sticker(random.choice(mas))
         except Exception as e:
             logging.error(f"Ошибка при отправке стикера: {e}")
-
-    async def greetings(self, update, context):
-        first_name = [update.message][0]['chat']['first_name']
-        user_name = [update.message][0]['chat']['username']
-        self.user_id = update.message.text
-        await update.message.reply_text(f"Привет, {self.user_id}! Теперь ты можешь ознакомиться с тем, что я умею)) /help")
-        await context.bot.sendMessage(GROUP_ID,
-                                      f"Пользователь {first_name}(@{user_name}) использует Ваш бот)"
-                                      f"'\n\n Хотите запретить ему писать сообщения?")
-        return ConversationHandler.END
 
     async def handle_message(self, update, context):
         user_message = update.message.text.lower().strip()
@@ -348,10 +392,17 @@ class TG_BOT():
         await update.message.reply_text(f"<b>Диалог начат, если хочешь "
                                         f"закончить напиши exit</b>", parse_mode="html")
         if question == 1:
-            await update.message.reply_text("Как у тебя дела?")
+            reply_keyboard = [['Хорошо'],
+                              ['Отлично'],
+                              ['Плохо'],]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_text("Как у тебя дела?", reply_markup=markup)
             return 1
         elif question == 2:
-            await update.message.reply_text("Любишь питон?")
+            reply_keyboard = [['Да'],
+                              ['Нет'],]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_text("Любишь питон?", reply_markup=markup)
             return 2
         else:
             await self.end_dialog(update, context)
@@ -373,7 +424,10 @@ class TG_BOT():
             await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
         else:
             await update.message.reply_text("Дамц, в жизни все сложнее чем просто хорошо или плохо)(")
-        await update.message.reply_text('Это из-за погоды?')
+        reply_keyboard = [['Да'],
+                          ['Нет'], ]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text('Это из-за погоды?', reply_markup=markup)
         return 11
 
     async def yes_or_no(self, update, context):
@@ -388,7 +442,14 @@ class TG_BOT():
             await update.message.reply_text("Да ладно, всё равно неплохо поболтали, да ведь?")
         else:
             await update.message.reply_text("Хм... в жизни все сложнее чем просто да или нет)(")
-        await update.message.reply_text("Хорошо поговорили))")
+        reply_keyboard = [['Привет', 'Время', 'Пока'],
+                          ['/dialog', '/birthday', '/weather'],
+                          ['/film_list_add', '/film_delete'],
+                          ['/get_film_name_url', '/film_view_lists'],
+                          ['/map_geocoder'],
+                          ['/question']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text("Хорошо поговорили))", reply_markup=markup)
         return ConversationHandler.END
 
     async def like_python(self, update, context):
@@ -397,12 +458,15 @@ class TG_BOT():
             await update.message.reply_text("Жаль, что вы не хотите поговорить")
             await update.message.reply_text("Диалог закончен")
             return ConversationHandler.END
+        reply_keyboard = [['Да'],
+                          ['Нет'], ]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         if "да" in answ or "очень" in answ or "ага" in answ or "норм" in answ:
-            await update.message.reply_text("Отлично, я сам написан на питоне?")
-            await update.message.reply_text("Хочешь написать тг бота на питоне?")
+            await update.message.reply_text("Отлично, я сам написан на питоне)")
+            await update.message.reply_text("Хочешь написать тг бота на питоне?", reply_markup=markup)
         elif "нет" in answ or "не" in answ or "хуж" in answ or "плох" in answ or "отврат" in answ:
             await update.message.reply_text("Жалко, мои разработчики очень любят этот язык)")
-            await update.message.reply_text("Хочешь написать тг бота на другом языке?")
+            await update.message.reply_text("Хочешь написать тг бота на другом языке?", reply_markup=markup)
         else:
             await update.message.reply_text("Так да или нет?")
             return 2
@@ -426,7 +490,10 @@ class TG_BOT():
 
     async def question(self, update, context):
         await update.message.reply_text(f"Убедительно просим Вас быть вежливыми, ведь это сообщение отправляется напрямую администраторам")
-        await update.message.reply_text(f"Введите текст запроса:")
+        reply_keyboard = [['Спасибо Вам большое'],
+                          ['Бот классный'], ]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(f"Введите текст запроса:", reply_markup=markup)
         return 1
 
     async def send_question(self, update, context):
@@ -447,7 +514,10 @@ class TG_BOT():
         return ConversationHandler.END
 
     async def birthday(self, update, context):
-        await update.message.reply_text(f"Введите дату своего рождения (в формате: 'число месяц')")
+        reply_keyboard = [['1 января'],
+                          ['12 мая'], ]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(f"Введите дату своего рождения (в формате: 'число месяц')", reply_markup=markup)
         return 1
 
     async def count_birthday(self, update, context):
@@ -507,7 +577,12 @@ class TG_BOT():
         return ConversationHandler.END
 
     async def weather(self, update, context):
-        await update.message.reply_text(f"Введите название города, в котором хотите узнать погоду)")
+        reply_keyboard = [['Санкт-Петербург'],
+                          ['Москва'],
+                          ['Тула'],
+                          ['Псков'],]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(f"Введите название города, в котором хотите узнать погоду)", reply_markup=markup)
         return 1
 
     async def get_weather(self, update, context):
