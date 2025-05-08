@@ -56,6 +56,19 @@ class TG_BOT():
             reply_markup=markup)
         return 5
 
+    # async def film_list_delete(self, update, context):
+    #     self.user_name = [update.message][0]['chat']['first_name']
+    #     new_item = """SELECT list_name FROM films WHERE tg_name = ?"""
+    #     lists = set(self.cur.execute(new_item, (self.user_name,)).fetchall())
+    #     reply_keyboard = []
+    #     for i in lists:
+    #         reply_keyboard.append([f"{str(i)[2:-3]}"])
+    #     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    #     await update.message.reply_text(
+    #         'Выберете список.',
+    #         reply_markup=markup)
+    #     return 1
+
 
     async def film_list_add(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
@@ -89,6 +102,49 @@ class TG_BOT():
             reply_markup=markup)
         return 3
 
+    async def film_list_delete(self, update, context):
+        self.user_name = [update.message][0]['chat']['first_name']
+        new_item = """SELECT list_name FROM films WHERE tg_name = ?"""
+        lists = set(self.cur.execute(new_item, (self.user_name,)).fetchall())
+        reply_keyboard = []
+        for i in lists:
+            reply_keyboard.append([f"{str(i)[2:-3]}"])
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(
+            'Выберете список',
+            reply_markup=markup)
+        return 6
+
+    async def return_list_delete(self, update, context):
+        list_name = update.message.text
+        self.user_response = []
+        self.user_response.append(list_name)
+        new_item = """SELECT film_name FROM films WHERE tg_name = ? AND list_name = ?"""
+        result = (self.cur.execute(new_item, (self.user_name, list_name,)).fetchall())
+        reply_keyboard = []
+        for i in result:
+            reply_keyboard.append([f"{i[0]}"])
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(
+            'Выберете название фильма',
+            reply_markup=markup)
+        return 5
+
+
+    async def delete_from_db(self, update, context):
+        self.user_name = [update.message][0]['chat']['first_name']
+        self.user_response.append(update.message.text)
+        new_item = """DELETE FROM films WHERE tg_name = ? and list_name = ? and film_name = ?"""
+        self.cur.execute(new_item, (self.user_name, self.user_response[0], self.user_response[1]))
+        self.con.commit()
+        reply_keyboard = [['/film_list_add', '/film_view_lists', '/map_geocoder', '/get_film_name_url']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_text(
+            'Успешно удалено',
+            reply_markup=markup)
+        return ConversationHandler.END
+
+
     async def add_to_bd(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
         self.user_response.append(update.message.text)
@@ -120,7 +176,7 @@ class TG_BOT():
 
             f"\n<b>Диалог:</b>\n"
             f" --> Я умею здороваться с пользователем\n"
-            f" --> Я пока что умею поддерживать простой диалог по команде /dialog\n"
+            f" --> /dialog -- умею поддерживать простой диалог\n"
             f" --> Я умею прощаться с пользователем\n"
 
             f"\n<b>Фильмы:</b>\n"
@@ -239,7 +295,8 @@ class TG_BOT():
         await update.message.reply_text(
             'Выберете список',
             reply_markup=markup)
-        return 11
+        return 4
+
 
     async def return_list(self, update, context):
         list_name = update.message.text
@@ -376,12 +433,16 @@ class TG_BOT():
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler('film_list_add', self.film_list_add),
                           CommandHandler('film_view_lists', self.film_view_lists),
+                          CommandHandler('film_list_delete', self.film_list_delete),
                           ],
             states={
                 1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.make_list)],
                 2: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_data)],
                 3: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.add_to_bd)],
-                11: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.return_list)],
+                4: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.return_list)],
+                5: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.delete_from_db)],
+                6: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.return_list_delete)],
+
             },
             fallbacks=[CommandHandler('stop', self.stop)]
         )
