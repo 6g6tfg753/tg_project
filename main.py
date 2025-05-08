@@ -56,20 +56,6 @@ class TG_BOT():
             reply_markup=markup)
         return 5
 
-    # async def film_list_delete(self, update, context):
-    #     self.user_name = [update.message][0]['chat']['first_name']
-    #     new_item = """SELECT list_name FROM films WHERE tg_name = ?"""
-    #     lists = set(self.cur.execute(new_item, (self.user_name,)).fetchall())
-    #     reply_keyboard = []
-    #     for i in lists:
-    #         reply_keyboard.append([f"{str(i)[2:-3]}"])
-    #     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-    #     await update.message.reply_text(
-    #         'Выберете список.',
-    #         reply_markup=markup)
-    #     return 1
-
-
     async def film_list_add(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
         new_item = """SELECT list_name FROM films WHERE tg_name = ?"""
@@ -130,7 +116,6 @@ class TG_BOT():
             reply_markup=markup)
         return 5
 
-
     async def delete_from_db(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
         self.user_response.append(update.message.text)
@@ -143,7 +128,6 @@ class TG_BOT():
             'Успешно удалено',
             reply_markup=markup)
         return ConversationHandler.END
-
 
     async def add_to_bd(self, update, context):
         self.user_name = [update.message][0]['chat']['first_name']
@@ -168,7 +152,6 @@ class TG_BOT():
             reply_markup=markup)
         return ConversationHandler.END
 
-
     async def help(self, update, context):
         await update.message.reply_text(
             f"Я - бот-помощник.\n"
@@ -183,18 +166,18 @@ class TG_BOT():
             f" --> /film_list_add -- добавлять новый список Ваших фильмов\n"
             f" --> /film_view_lists -- показать списки фильмов\n"
             f" --> /get_film_name_url -- получить ссылку на фильм по названию\n"
-            # TODO: f" --> /film_delete -- удалять из списка фильм\n"
-            # TODO: f" --> /film_watch -- выбрать фильм для просмотра из списка всех фильмов\n"
+            f" --> /film_delete -- удалять из списка фильм\n"
 
             f"\n<b>Карта:</b>\n"
             f" --> /map_geocoder -- находит карту любого географического объекта\n"  # TODO: выделить объект на карте
+
             f"\n<b>Напоминания:</b>\n"
             # TODO: f" --> /reminding ~_время напоминания_~ (в формате HH::MM (DD:MM:YY)) ~_количество сообщений_~ (3 по умолчанию) --  установить напоминание\n" 
             # TODO: f" --> /timer ~_на какое время таймер_~ (в формате HH::MM) ~_количество сообщений_~ (1 по умолчанию) --  установить таймер, который сработает через определенное количество времени\n" 
 
             f"\n<b>Другое:</b>\n"
             f" --> /help -- помощь с ботом\n"
-            # TODO: f" --> /question -- вопрос к разработчикам\n"
+            f" --> /question -- вопрос к разработчикам\n"
             , parse_mode="html")
 
     async def map_geocoder(self, update, context):
@@ -242,7 +225,6 @@ class TG_BOT():
             caption=f"{(response['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['metaDataProperty']['GeocoderMetaData']['text'])}"
         )
         return ConversationHandler.END
-
 
     async def geocoder_test(self, update, context):
         geocoder_uri = "http://geocode-maps.yandex.ru/1.x/"
@@ -297,7 +279,6 @@ class TG_BOT():
             reply_markup=markup)
         return 4
 
-
     async def return_list(self, update, context):
         list_name = update.message.text
         new_item = """SELECT film_name, genre FROM films WHERE tg_name = ? AND list_name = ?"""
@@ -321,8 +302,13 @@ class TG_BOT():
             logging.error(f"Ошибка при отправке стикера: {e}")
 
     async def greetings(self, update, context):
+        first_name = [update.message][0]['chat']['first_name']
+        user_name = [update.message][0]['chat']['username']
         self.user_id = update.message.text
         await update.message.reply_text(f"Привет, {self.user_id}! Теперь ты можешь ознакомиться с тем, что я умею)) /help")
+        await context.bot.sendMessage(GROUP_ID,
+                                      f"Пользователь {first_name}(@{user_name}) использует Ваш бот)"
+                                      f"'\n\n Хотите запретить ему писать сообщения?")
         return ConversationHandler.END
 
     async def handle_message(self, update, context):
@@ -428,12 +414,26 @@ class TG_BOT():
         await update.message.reply_text("Хорошо поговорили)) Пока))")
         return ConversationHandler.END
 
+    async def question(self, update, context):
+        await update.message.reply_text(f"Убедительно просим Вас быть вежливыми")
+        await update.message.reply_text(f"Введите текст запроса:")
+        return 1
+
+    async def send_question(self, update, context):
+        first_name = [update.message][0]['chat']['first_name']
+        user_name = [update.message][0]['chat']['username']
+        await update.message.reply_text(f"Ваше сообщение отправлено")
+        await context.bot.sendMessage(GROUP_ID,
+                                      f"Получен вопрос от пользователя {first_name}(@{user_name}):\n\n '{update.message.text}"
+                                      f"'\n\n Хотите ответить ему в лс?")
+        return ConversationHandler.END
+
 
     def main(self):
-        conv_handler = ConversationHandler(
+        film_dialog = ConversationHandler(
             entry_points=[CommandHandler('film_list_add', self.film_list_add),
                           CommandHandler('film_view_lists', self.film_view_lists),
-                          CommandHandler('film_list_delete', self.film_list_delete),
+                          CommandHandler('film_delete', self.film_list_delete),
                           ],
             states={
                 1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.make_list)],
@@ -485,12 +485,21 @@ class TG_BOT():
             fallbacks=[CommandHandler('stop', self.stop)]
         )
 
+        question_to_testing = ConversationHandler(
+            entry_points=[CommandHandler("question", self.question),],
+            states={
+                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.send_question)],
+            },
+            fallbacks=[CommandHandler('stop', self.stop)]
+        )
+
         application = Application.builder().token(TOKEN).build()
-        application.add_handler(conv_handler)
+        application.add_handler(film_dialog)
         application.add_handler(greeting)
         application.add_handler(geocoder)
         application.add_handler(dialog)
         application.add_handler(film_url_dialog)
+        application.add_handler(question_to_testing)
         application.add_handler(CommandHandler("help", self.help))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 
